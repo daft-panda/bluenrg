@@ -468,8 +468,8 @@ where
     pub fn with_spi<T, F, E>(&mut self, spi: &mut SPI, body: F) -> T
     where
         F: FnOnce(&mut ActiveBlueNRG<SPI, OutputPin1, OutputPin2, InputPin, GpioError>) -> T,
-        SPI: emhal::blocking::spi::transfer::Default<u8, Error = E>
-            + emhal::blocking::spi::write::Default<u8, Error = E>,
+        SPI: emhal::blocking::spi::Transfer<u8, Error = E>
+            + emhal::blocking::spi::Write<u8, Error = E>,
     {
         let mut active =
             ActiveBlueNRG::<SPI, OutputPin1, OutputPin2, InputPin, GpioError> { spi, d: self };
