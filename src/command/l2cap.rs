@@ -6,6 +6,7 @@ extern crate embedded_hal as hal;
 extern crate nb;
 
 use byteorder::{ByteOrder, LittleEndian};
+use emhal::spi::SpiBus;
 use hci::types::{ConnectionInterval, ExpectedConnectionLength};
 
 /// L2Cap-specific commands for the [`ActiveBlueNRG`](crate::ActiveBlueNRG).
@@ -51,16 +52,15 @@ pub trait Commands {
     ) -> nb::Result<(), Self::Error>;
 }
 
-impl<'bnrg, 'spi, 'dbuf, SPI, OutputPin1, OutputPin2, InputPin, SpiError, GpioError> Commands
-    for crate::ActiveBlueNRG<'bnrg, 'spi, 'dbuf, SPI, OutputPin1, OutputPin2, InputPin, GpioError>
+impl<SPI, OutputPin1, OutputPin2, InputPin, GpioError> Commands
+    for crate::ActiveBlueNRG<'_, '_, '_, SPI, OutputPin1, OutputPin2, InputPin, GpioError>
 where
-    SPI: hal::blocking::spi::Transfer<u8, Error = SpiError>
-        + hal::blocking::spi::Write<u8, Error = SpiError>,
-    OutputPin1: hal::digital::v2::OutputPin<Error = GpioError>,
-    OutputPin2: hal::digital::v2::OutputPin<Error = GpioError>,
-    InputPin: hal::digital::v2::InputPin<Error = GpioError>,
+    SPI: SpiBus,
+    OutputPin1: hal::digital::OutputPin<Error = GpioError>,
+    OutputPin2: hal::digital::OutputPin<Error = GpioError>,
+    InputPin: hal::digital::InputPin<Error = GpioError>,
 {
-    type Error = crate::Error<SpiError, GpioError>;
+    type Error = crate::Error<SPI::Error, GpioError>;
 
     impl_params!(
         connection_parameter_update_request,

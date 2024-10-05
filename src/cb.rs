@@ -10,7 +10,7 @@ impl<'a, T> Buffer<'a, T>
 where
     T: Copy,
 {
-    pub fn new(buffer: &'a mut [T]) -> Buffer<T> {
+    pub fn new(buffer: &'a mut [T]) -> Buffer<'a, T> {
         Buffer::<T> {
             buffer,
             read_index: 0,

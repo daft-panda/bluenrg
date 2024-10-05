@@ -6,6 +6,7 @@ extern crate embedded_hal as hal;
 extern crate nb;
 
 use byteorder::{ByteOrder, LittleEndian};
+use emhal::spi::SpiBus;
 
 /// Vendor-specific HCI commands for the [`ActiveBlueNRG`](crate::ActiveBlueNRG).
 pub trait Commands {
@@ -176,16 +177,15 @@ pub trait Commands {
     fn get_anchor_period(&mut self) -> nb::Result<(), Self::Error>;
 }
 
-impl<'bnrg, 'spi, 'dbuf, SPI, OutputPin1, OutputPin2, InputPin, SpiError, GpioError> Commands
-    for crate::ActiveBlueNRG<'bnrg, 'spi, 'dbuf, SPI, OutputPin1, OutputPin2, InputPin, GpioError>
+impl<SPI, OutputPin1, OutputPin2, InputPin, GpioError> Commands
+    for crate::ActiveBlueNRG<'_, '_, '_, SPI, OutputPin1, OutputPin2, InputPin, GpioError>
 where
-    SPI: hal::blocking::spi::Transfer<u8, Error = SpiError>
-        + hal::blocking::spi::Write<u8, Error = SpiError>,
-    OutputPin1: hal::digital::v2::OutputPin<Error = GpioError>,
-    OutputPin2: hal::digital::v2::OutputPin<Error = GpioError>,
-    InputPin: hal::digital::v2::InputPin<Error = GpioError>,
+    SPI: SpiBus,
+    OutputPin1: hal::digital::OutputPin<Error = GpioError>,
+    OutputPin2: hal::digital::OutputPin<Error = GpioError>,
+    InputPin: hal::digital::InputPin<Error = GpioError>,
 {
-    type Error = crate::Error<SpiError, GpioError>;
+    type Error = crate::Error<SPI::Error, GpioError>;
 
     fn get_firmware_revision(&mut self) -> nb::Result<(), Self::Error> {
         self.write_command(crate::opcode::HAL_GET_FIRMWARE_REVISION, &[])
@@ -222,7 +222,7 @@ where
             return Err(nb::Error::Other(Error::InvalidChannel(channel)));
         }
 
-        self.write_command(crate::opcode::HAL_START_TONE, &[channel as u8])
+        self.write_command(crate::opcode::HAL_START_TONE, &[channel])
             .map_err(rewrap_error)
     }
 

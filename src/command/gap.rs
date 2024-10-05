@@ -7,6 +7,7 @@ extern crate nb;
 
 use byteorder::{ByteOrder, LittleEndian};
 use core::time::Duration;
+use emhal::spi::SpiBus;
 pub use hci::host::{AdvertisingFilterPolicy, AdvertisingType, OwnAddressType};
 pub use hci::types::{ConnectionInterval, ExpectedConnectionLength, ScanWindow};
 pub use hci::{BdAddr, BdAddrType};
@@ -59,9 +60,9 @@ pub trait Commands {
     /// the controller generates an [GAP Limited Discoverable
     /// Complete](crate::event::BlueNRGEvent::GapLimitedDiscoverableTimeout) event.
 
-    fn set_limited_discoverable<'a, 'b>(
+    fn set_limited_discoverable(
         &mut self,
-        params: &DiscoverableParameters<'a, 'b>,
+        params: &DiscoverableParameters<'_, '_>,
     ) -> nb::Result<(), Error<Self::Error>>;
 
     /// Set the device in discoverable mode.
@@ -90,9 +91,9 @@ pub trait Commands {
     ///
     /// A [Command Complete](crate::event::command::ReturnParameters::GapSetDiscoverable) event is
     /// generated.
-    fn set_discoverable<'a, 'b>(
+    fn set_discoverable(
         &mut self,
-        params: &DiscoverableParameters<'a, 'b>,
+        params: &DiscoverableParameters<'_, '_>,
     ) -> nb::Result<(), Error<Self::Error>>;
 
     /// Set the device in direct connectable mode.
@@ -632,9 +633,9 @@ pub trait Commands {
     ///   (such that the serialized command would not fit in 255 bytes), a
     ///   [WhiteListTooLong](Error::WhiteListTooLong) is returned. The list cannot have more than 33
     ///   elements.
-    fn start_auto_connection_establishment<'a>(
+    fn start_auto_connection_establishment(
         &mut self,
-        params: &AutoConnectionEstablishmentParameters<'a>,
+        params: &AutoConnectionEstablishmentParameters<'_>,
     ) -> nb::Result<(), Error<Self::Error>>;
 
     /// Start a general connection establishment procedure.
@@ -676,9 +677,9 @@ pub trait Commands {
     ///   long (such that the serialized command would not fit in 255 bytes), a
     ///   [WhiteListTooLong](Error::WhiteListTooLong) is returned. The list cannot have more than 35
     ///   elements.
-    fn start_selective_connection_establishment<'a>(
+    fn start_selective_connection_establishment(
         &mut self,
-        params: &SelectiveConnectionEstablishmentParameters<'a>,
+        params: &SelectiveConnectionEstablishmentParameters<'_>,
     ) -> nb::Result<(), Error<Self::Error>>;
 
     /// Start the direct connection establishment procedure.
@@ -853,16 +854,15 @@ pub trait Commands {
     fn is_device_bonded(&mut self, addr: hci::host::PeerAddrType) -> nb::Result<(), Self::Error>;
 }
 
-impl<'bnrg, 'spi, 'dbuf, SPI, OutputPin1, OutputPin2, InputPin, SpiError, GpioError> Commands
-    for crate::ActiveBlueNRG<'bnrg, 'spi, 'dbuf, SPI, OutputPin1, OutputPin2, InputPin, GpioError>
+impl<SPI, OutputPin1, OutputPin2, InputPin, GpioError> Commands
+    for crate::ActiveBlueNRG<'_, '_, '_, SPI, OutputPin1, OutputPin2, InputPin, GpioError>
 where
-    SPI: hal::blocking::spi::Transfer<u8, Error = SpiError>
-        + hal::blocking::spi::Write<u8, Error = SpiError>,
-    OutputPin1: hal::digital::v2::OutputPin<Error = GpioError>,
-    OutputPin2: hal::digital::v2::OutputPin<Error = GpioError>,
-    InputPin: hal::digital::v2::InputPin<Error = GpioError>,
+    SPI: SpiBus,
+    OutputPin1: hal::digital::OutputPin<Error = GpioError>,
+    OutputPin2: hal::digital::OutputPin<Error = GpioError>,
+    InputPin: hal::digital::InputPin<Error = GpioError>,
 {
-    type Error = crate::Error<SpiError, GpioError>;
+    type Error = crate::Error<SPI::Error, GpioError>;
 
     fn set_nondiscoverable(&mut self) -> nb::Result<(), Self::Error> {
         self.write_command(crate::opcode::GAP_SET_NONDISCOVERABLE, &[])
@@ -952,7 +952,7 @@ where
         let mut bytes = [0; 3];
         bytes[0] = role.bits();
         bytes[1] = privacy_enabled as u8;
-        bytes[2] = dev_name_characteristic_len as u8;
+        bytes[2] = dev_name_characteristic_len;
 
         self.write_command(crate::opcode::GAP_INIT, &bytes)
     }
@@ -1331,7 +1331,7 @@ pub struct DiscoverableParameters<'a, 'b> {
     pub conn_interval: (Option<Duration>, Option<Duration>),
 }
 
-impl<'a, 'b> DiscoverableParameters<'a, 'b> {
+impl DiscoverableParameters<'_, '_> {
     // 14 fixed-size parameters, one parameter of up to 31 bytes, and one of up to 248 bytes.
     const MAX_LENGTH: usize = 14 + 31 + 248;
 
@@ -1847,7 +1847,7 @@ pub struct AutoConnectionEstablishmentParameters<'a> {
     pub white_list: &'a [hci::host::PeerAddrType],
 }
 
-impl<'a> AutoConnectionEstablishmentParameters<'a> {
+impl AutoConnectionEstablishmentParameters<'_> {
     const MAX_LENGTH: usize = 249;
 
     fn validate<E>(&self) -> Result<(), Error<E>> {
@@ -1961,7 +1961,7 @@ pub struct SelectiveConnectionEstablishmentParameters<'a> {
     pub white_list: &'a [hci::host::PeerAddrType],
 }
 
-impl<'a> SelectiveConnectionEstablishmentParameters<'a> {
+impl SelectiveConnectionEstablishmentParameters<'_> {
     const MAX_LENGTH: usize = 252;
 
     fn validate<E>(&self) -> Result<(), Error<E>> {
@@ -2104,7 +2104,7 @@ pub struct BroadcastModeParameters<'a, 'b> {
 }
 
 #[cfg(feature = "ms")]
-impl<'a, 'b> BroadcastModeParameters<'a, 'b> {
+impl BroadcastModeParameters<'_, '_> {
     const MAX_LENGTH: usize = 255;
 
     fn validate<E>(&self) -> Result<(), Error<E>> {

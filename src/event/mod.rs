@@ -806,7 +806,7 @@ fn to_hal_initialized(buffer: &[u8]) -> Result<ResetReason, hci::event::Error<Bl
 bitflags! {
     /// Bitfield for the [Events Lost](BlueNRGEvent::EventsLost) event. Each bit indicates a
     /// different type of event that was not handled.
-    #[derive(Default)]
+    #[derive(Default, Debug, Clone, Copy)]
     pub struct EventFlags: u64 {
         /// HCI Event: [Disconnection complete](hci::event::Event::DisconnectionComplete).
         const DISCONNECTION_COMPLETE = 1 << 0;
@@ -1745,7 +1745,7 @@ pub struct HandleUuid16PairIterator<'a> {
     next_index: usize,
 }
 
-impl<'a> Iterator for HandleUuid16PairIterator<'a> {
+impl Iterator for HandleUuid16PairIterator<'_> {
     type Item = HandleUuid16Pair;
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_index >= self.count {
@@ -1765,7 +1765,7 @@ pub struct HandleUuid128PairIterator<'a> {
     next_index: usize,
 }
 
-impl<'a> Iterator for HandleUuid128PairIterator<'a> {
+impl Iterator for HandleUuid128PairIterator<'_> {
     type Item = HandleUuid128Pair;
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_index >= self.count {
@@ -1903,7 +1903,7 @@ pub struct HandleInfoPairIterator<'a> {
     next_index: usize,
 }
 
-impl<'a> Iterator for HandleInfoPairIterator<'a> {
+impl Iterator for HandleInfoPairIterator<'_> {
     type Item = HandleInfoPair;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -2816,6 +2816,7 @@ fn to_att_read_multiple_permit_request(
 }
 
 /// This event is raised when the number of available TX buffers is above a threshold TH (TH = 2).
+///
 /// The event will be given only if a previous ACI command returned with
 /// [`InsufficientResources`](AttError::InsufficientResources).
 #[cfg(feature = "ms")]
